@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Reports and output files
+reports/
+*.csv
+*.json
+
+# VSCode and other IDE settings
+.vscode/
+.idea/
+*.swp
+
+# Pytest cache
+.pytest_cache/
+.cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# mypy / pylint / etc
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pylint.d/
+
+# macOS files
+.DS_Store
+
+# Test output
+test_output/
+
+# Misc
+*.bak
+*.tmp
