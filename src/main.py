@@ -1,8 +1,29 @@
+"""
+Модуль для генерации отчётов по зарплатам сотрудников на основе данных из CSV-файлов.
+
+Основные функции:
+- Парсинг CSV-файлов с информацией о сотрудниках
+- Генерация отчётов:
+  - Выплаты (payout): расчёт зарплаты по часам работы
+  - Средняя ставка (average_rate): расчёт средней ставки по отделам
+- Экспорт результатов в JSON или CSV форматы
+
+Ключевые классы:
+- BaseReport: абстрактный базовый класс для отчётов
+- PayoutReport: реализация расчёта выплат
+- AverageRateReport: реализация расчёта средней ставки
+
+Требования к входным данным:
+- CSV файлы должны содержать обязательные поля:
+  - hours_worked: отработанные часы
+  - Одно из полей ставки: hourly_rate, rate или salary
+  - Дополнительные поля: id, name, department
+"""
+
 import argparse
 import json
 import sys
 import logging
-from typing import List, Dict, Optional
 from pathlib import Path
 
 logging.basicConfig(
@@ -14,7 +35,24 @@ logging.basicConfig(
 VALID_RATE_FIELDS = {"hourly_rate", "rate", "salary"}
 
 
-def parse_csv(file_path: str) -> List[Dict[str, str]]:
+def parse_csv(file_path: str) -> list[dict[str, str]]:
+    """
+    Парсит CSV-файл и преобразует его в список словарей.
+
+    Параметры:
+        file_path (str): Путь к CSV-файлу
+
+    Возвращает:
+        list[dict[str, str]]: Список записей в виде словарей
+
+    Исключения:
+        FileNotFoundError: Если файл не существует
+        Exception: При общих ошибках чтения файла
+
+    Логирует:
+        Предупреждения о строках с несоответствующим количеством полей
+        Ошибки при проблемах с чтением файла
+    """
     logging.info(f"Чтение файла: {file_path}")
     records = []
     try:
@@ -37,12 +75,49 @@ def parse_csv(file_path: str) -> List[Dict[str, str]]:
 
 
 class BaseReport:
-    def generate(self, records: List[Dict[str, str]]) -> Dict:
-        raise NotImplementedError
+    """Абстрактный базовый класс для генерации отчётов."""
+
+    def generate(self, records: list[dict[str, str]]) -> dict:
+        """
+        Абстрактный метод для генерации отчёта.
+
+        Параметры:
+            records (list[dict[str, str]]): Список записей сотрудников
+
+        Исключения:
+            NotImplementedError: При прямом вызове метода базового класса
+        """
+        raise NotImplementedError("Метод generate должен быть реализован в дочерних классах")
 
 
 class PayoutReport(BaseReport):
-    def generate(self, records: List[Dict[str, str]]) -> Dict:
+    """Класс для генерации отчёта по выплатам сотрудников."""
+
+    def generate(self, records: list[dict[str, str]]) -> dict:
+        """
+        Рассчитывает выплаты для каждого сотрудника.
+
+        Параметры:
+            records (list[dict[str, str]]): Список записей сотрудников
+
+        Возвращает:
+            dict: Результаты в формате:
+                {
+                    "report": "payout",
+                    "results": [
+                        {
+                            "id": "сотрудника",
+                            "name": "имя",
+                            "department": "отдел",
+                            "payout": сумма
+                        }, ...
+                    ]
+                }
+
+        Логирует:
+            Предупреждения о записях с отсутствующими полями ставок
+            Ошибки обработки записей
+        """
         logging.info("Формируется отчёт payout")
         result = []
         for r in records:
@@ -66,7 +141,29 @@ class PayoutReport(BaseReport):
 
 
 class AverageRateReport(BaseReport):
-    def generate(self, records: List[Dict[str, str]]) -> Dict:
+    """Класс для генерации отчёта по средней ставке по отделам."""
+
+    def generate(self, records: list[dict[str, str]]) -> dict:
+        """
+        Рассчитывает среднюю ставку для каждого отдела.
+
+        Параметры:
+            records (list[dict[str, str]]): Список записей сотрудников
+
+        Возвращает:
+            dict: Результаты в формате:
+                {
+                    "report": "average_rate",
+                    "results": {
+                        "отдел1": средняя_ставка,
+                        ...
+                    }
+                }
+
+        Логирует:
+            Предупреждения о записях с отсутствующими полями ставок
+            Ошибки обработки записей
+        """
         logging.info("Формируется отчёт average_rate")
         departments = {}
         for r in records:
@@ -88,7 +185,22 @@ class AverageRateReport(BaseReport):
         return {"report": "average_rate", "results": averages}
 
 
-def write_output(data: Dict, output_path: Optional[str]):
+def write_output(data: dict, output_path: str | None):
+    """
+    Записывает результаты отчёта в файл или выводит в stdout.
+
+    Параметры:
+        data (dict): Данные отчёта
+        output_path (str | None): Путь для сохранения файла
+
+    Поддерживаемые форматы:
+        - JSON (.json)
+        - CSV (.csv)
+
+    Логирует:
+        Ошибки при неверном формате файла
+        Ошибки записи в файл
+    """
     if output_path:
         ext = Path(output_path).suffix.lower()
         try:
@@ -120,6 +232,18 @@ def write_output(data: Dict, output_path: Optional[str]):
 
 
 def main():
+    """
+    Основная функция для обработки аргументов командной строки и запуска генерации отчётов.
+
+    Аргументы командной строки:
+        files: Один или несколько CSV-файлов
+        --report: Тип отчёта (payout | average_rate)
+        --output: Путь к выходному файлу (опционально)
+
+    Логирует:
+        Информацию о выбранном отчёте и входных файлах
+        Ошибки при неверных параметрах
+    """
     parser = argparse.ArgumentParser(description="Генерация отчётов по зарплатам сотрудников")
     parser.add_argument("files", nargs="+", help="Один или несколько CSV-файлов")
     parser.add_argument("--report", required=True, help="Тип отчёта: payout или average_rate")

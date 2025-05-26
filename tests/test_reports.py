@@ -1,7 +1,6 @@
 import pytest
 from src.main import PayoutReport, AverageRateReport
 
-
 @pytest.fixture
 def sample_records():
     return [
@@ -11,7 +10,6 @@ def sample_records():
         {"id": "4", "name": "Dana", "department": "HR", "hours_worked": "160"},
         {"id": "5", "name": "Eve", "department": "HR", "hours_worked": "bad", "hourly_rate": "40"},
     ]
-
 
 def test_payout_report(sample_records):
     report = PayoutReport()
@@ -24,7 +22,6 @@ def test_payout_report(sample_records):
     assert payouts["Alice"] == 8000.0
     assert payouts["Bob"] == 10200.0
     assert payouts["Charlie"] == 8250.0
-
 
 def test_average_rate_report(sample_records):
     report = AverageRateReport()
