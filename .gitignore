@@ -14,10 +14,6 @@ env/
 logs/
 *.log.*
 
-# Reports and output files
-*.csv
-*.json
-
 # VSCode and other IDE settings
 .vscode/
 .idea/

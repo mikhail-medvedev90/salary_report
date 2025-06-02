@@ -26,13 +26,13 @@ import sys
 import logging
 from pathlib import Path
 
+from src.constants import REPORT_NAMES, VALID_RATE_FIELDS
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-
-VALID_RATE_FIELDS = {"hourly_rate", "rate", "salary"}
 
 
 def parse_csv(file_path: str) -> list[dict[str, str]]:
@@ -53,6 +53,7 @@ def parse_csv(file_path: str) -> list[dict[str, str]]:
         Предупреждения о строках с несоответствующим количеством полей
         Ошибки при проблемах с чтением файла
     """
+
     logging.info(f"Чтение файла: {file_path}")
     records = []
     try:
@@ -87,6 +88,7 @@ class BaseReport:
         Исключения:
             NotImplementedError: При прямом вызове метода базового класса
         """
+
         raise NotImplementedError("Метод generate должен быть реализован в дочерних классах")
 
 
@@ -118,6 +120,7 @@ class PayoutReport(BaseReport):
             Предупреждения о записях с отсутствующими полями ставок
             Ошибки обработки записей
         """
+
         logging.info("Формируется отчёт payout")
         result = []
         for r in records:
@@ -164,6 +167,7 @@ class AverageRateReport(BaseReport):
             Предупреждения о записях с отсутствующими полями ставок
             Ошибки обработки записей
         """
+
         logging.info("Формируется отчёт average_rate")
         departments = {}
         for r in records:
@@ -177,11 +181,7 @@ class AverageRateReport(BaseReport):
                 departments.setdefault(dept, []).append(rate)
             except Exception as e:
                 logging.warning(f"Ошибка обработки записи: {r} — {e}")
-        averages = {
-            dept: round(sum(rates) / len(rates), 2)
-            for dept, rates in departments.items()
-            if rates
-        }
+        averages = {dept: round(sum(rates) / len(rates), 2) for dept, rates in departments.items() if rates}
         return {"report": "average_rate", "results": averages}
 
 
@@ -201,12 +201,13 @@ def write_output(data: dict, output_path: str | None):
         Ошибки при неверном формате файла
         Ошибки записи в файл
     """
+
     if output_path:
         ext = Path(output_path).suffix.lower()
         try:
             if ext == ".json":
                 with open(output_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2, ensure_ascii=False)
+                    json.dump(data, f, indent=4, ensure_ascii=False)
             elif ext == ".csv":
                 with open(output_path, "w", encoding="utf-8") as f:
                     if data["report"] == "payout":
@@ -228,7 +229,7 @@ def write_output(data: dict, output_path: str | None):
             logging.error(f"Ошибка записи в файл {output_path}: {e}")
             sys.exit(1)
     else:
-        print(json.dumps(data, indent=2, ensure_ascii=False))
+        print(json.dumps(data, indent=4, ensure_ascii=False))
 
 
 def main():
@@ -244,9 +245,10 @@ def main():
         Информацию о выбранном отчёте и входных файлах
         Ошибки при неверных параметрах
     """
+
     parser = argparse.ArgumentParser(description="Генерация отчётов по зарплатам сотрудников")
     parser.add_argument("files", nargs="+", help="Один или несколько CSV-файлов")
-    parser.add_argument("--report", required=True, help="Тип отчёта: payout или average_rate")
+    parser.add_argument("--report", required=True, choices=REPORT_NAMES, help="Тип отчёта: payout или average_rate")
     parser.add_argument("--output", help="Путь к выходному файлу (json или csv)")
     args = parser.parse_args()
 
@@ -257,16 +259,15 @@ def main():
     for file in args.files:
         all_records.extend(parse_csv(file))
 
-    reports = {
-        "payout": PayoutReport(),
-        "average_rate": AverageRateReport(),
-    }
+    match args.report:
+        case "payout":
+            report_class = PayoutReport()
+        case "average_rate":
+            report_class = AverageRateReport()
+        case _:
+            report_class = BaseReport()
 
-    if args.report not in reports:
-        logging.error("Неподдерживаемый тип отчёта. Доступные типы: payout, average_rate")
-        sys.exit(1)
-
-    report = reports[args.report].generate(all_records)
+    report = report_class.generate(all_records)
     write_output(report, args.output)
 
 
